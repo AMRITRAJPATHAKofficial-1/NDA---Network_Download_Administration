@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+desktop-app/config/history.json
+desktop-app/config/settings.json
+desktop-app/config/pot_provider.log
+desktop-app/ffmpeg/
+desktop-app/deno/
+desktop-app/pot-provider/
+node_modules/
+.vscode/
+mydownloader_cookies_*
