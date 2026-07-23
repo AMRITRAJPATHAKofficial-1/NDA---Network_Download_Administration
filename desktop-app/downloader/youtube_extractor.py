@@ -7,7 +7,7 @@ FFMPEG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 DENO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "deno", "deno.exe")
 POT_PROVIDER_SERVER_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pot-provider", "server")
 
-DIAGNOSTIC_MODE = True  # set False once everything's confirmed working
+DIAGNOSTIC_MODE = False  # set False once everything's confirmed working
 
 
 class DownloadCancelled(Exception):
