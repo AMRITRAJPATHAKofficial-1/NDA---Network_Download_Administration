@@ -1,7 +1,7 @@
 {
-  "manifest_version": 3,
-  "name": "My Downloader",
-  "version": "1.0",
+  "manifest_version": 3.1,
+  "name": "Network_Download_Administration",
+  "version": "1.1",
   "description": "Send links to My Downloader desktop app",
   "permissions": ["contextMenus", "downloads", "activeTab"],
   "optional_permissions": ["cookies"],
