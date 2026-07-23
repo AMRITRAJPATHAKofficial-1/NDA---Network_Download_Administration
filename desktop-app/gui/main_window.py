@@ -16,7 +16,7 @@ from downloader.history_manager import load_history, clear_history
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("My Downloader")
+        self.setWindowTitle("Network Download Administration")
         self.resize(1000, 600)
 
         self.all_entries = []

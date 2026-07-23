@@ -1,4 +1,4 @@
-# My Downloader (NDA — Network Download Administration)
+# Network Download Administration (NDA)
 
 A personal IDM-style download manager: a Chrome extension, a local FastAPI server, and a PySide6 desktop app working together to handle direct file downloads and YouTube/Instagram/X video downloads with full quality selection.
 

@@ -233,22 +233,25 @@ async def handle_new_download(url, suggested_filename, referrer=""):
 
             download_start = time.time()
             state = {"last_downloaded": 0, "last_time": download_start}
+            main_loop = asyncio.get_event_loop()  # capture the main/GUI thread's event loop
 
             def progress_cb(downloaded, total):
                 now = time.time()
                 elapsed = now - state["last_time"]
                 speed = (downloaded - state["last_downloaded"]) / elapsed if elapsed > 0 else 0
-
                 total_elapsed = now - download_start
                 avg_speed = downloaded / total_elapsed if total_elapsed > 0 else 0
-
-                progress_dlg.update_progress(
-                    downloaded, total,
-                    speed_bytes_per_sec=speed,
-                    avg_speed_bytes_per_sec=avg_speed
-                )
                 state["last_downloaded"] = downloaded
                 state["last_time"] = now
+
+                def _update_ui():
+                    progress_dlg.update_progress(
+                        downloaded, total,
+                        speed_bytes_per_sec=speed,
+                        avg_speed_bytes_per_sec=avg_speed
+                    )
+
+                main_loop.call_soon_threadsafe(_update_ui)
 
             engine = DownloadEngine(
                 url, save_path,
@@ -345,6 +348,7 @@ async def handle_new_youtube_download(url, format_selector, is_audio_only, title
 
         download_start = time.time()
         state = {"last_downloaded": 0, "last_time": download_start}
+        main_loop = asyncio.get_event_loop()  # capture main/GUI thread's loop for thread-safe UI updates
 
         def progress_cb(downloaded, total):
             now = time.time()
@@ -352,13 +356,17 @@ async def handle_new_youtube_download(url, format_selector, is_audio_only, title
             speed = (downloaded - state["last_downloaded"]) / elapsed if elapsed > 0 else 0
             total_elapsed = now - download_start
             avg_speed = downloaded / total_elapsed if total_elapsed > 0 else 0
-            progress_dlg.update_progress(
+            state["last_downloaded"] = downloaded
+            state["last_time"] = now
+
+            def _update_ui():
+                progress_dlg.update_progress(
                 downloaded, total,
                 speed_bytes_per_sec=speed,
                 avg_speed_bytes_per_sec=avg_speed
-            )
-            state["last_downloaded"] = downloaded
-            state["last_time"] = now
+                )
+
+            main_loop.call_soon_threadsafe(_update_ui)
 
         try:
             cookiefile = None
@@ -449,7 +457,7 @@ async def handle_clipboard_ytdlp_link(url):
 def on_clipboard_link_detected(url):
     reply = QMessageBox.question(
         None, "Download link detected?",
-        f"Found this link on your clipboard:\n\n{url}\n\nDownload it with My Downloader?",
+        f"Found this link on your clipboard:\n\n{url}\n\nDownload it with Network Download Administration?",
         QMessageBox.Yes | QMessageBox.No
     )
     if reply != QMessageBox.Yes:
@@ -515,10 +523,10 @@ def build_tray_icon(app):
     tray = QSystemTrayIcon(app)
     icon = app.style().standardIcon(app.style().StandardPixmap.SP_ArrowDown)
     tray.setIcon(icon)
-    tray.setToolTip("My Downloader")
+    tray.setToolTip("Network Download Administration")
 
     menu = QMenu()
-    open_action = menu.addAction("Open My Downloader")
+    open_action = menu.addAction("Open Network Download Administration")
     active_menu = menu.addMenu("Active Downloads")
     menu.addSeparator()
     history_action = menu.addAction("Download History")

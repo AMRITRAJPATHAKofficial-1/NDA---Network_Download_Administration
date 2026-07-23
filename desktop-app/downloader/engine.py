@@ -53,12 +53,32 @@ class DownloadEngine:
         self.rate_limiter = RateLimiter(speed_limit_kbps * 1024 if speed_limit_kbps else 0)
 
     async def _check_server_support(self, session):
-        """Check file size and whether server supports range requests."""
+        """Check file size and whether server supports range requests.
+        Some CDNs omit Content-Length on HEAD requests but include it on GET,
+        so if HEAD comes back empty, fall back to a tiny ranged GET probe."""
         async with session.head(self.url, allow_redirects=True) as resp:
             self.file_size = int(resp.headers.get("Content-Length", 0))
             accept_ranges = resp.headers.get("Accept-Ranges", "")
             self.supports_range = accept_ranges == "bytes" and self.file_size > 0
 
+        if self.file_size == 0:
+            headers = {"Range": "bytes=0-0"}
+            async with session.get(self.url, headers=headers, allow_redirects=True) as resp:
+                content_range = resp.headers.get("Content-Range", "")
+                if content_range and "/" in content_range:
+                    # e.g. "bytes 0-0/294567890" — the part after "/" is the true total size
+                    try:
+                        self.file_size = int(content_range.split("/")[-1])
+                        self.supports_range = True
+                    except ValueError:
+                        pass
+                elif resp.status == 200:
+                    # Server ignored our Range header and sent the whole file —
+                    # no range support, but Content-Length here is still the real total.
+                    cl = resp.headers.get("Content-Length", 0)
+                    if cl:
+                        self.file_size = int(cl)
+                    self.supports_range = False
     def _get_chunk_ranges(self):
         """Split file size into byte ranges for each connection."""
         chunk_size = self.file_size // self.num_connections

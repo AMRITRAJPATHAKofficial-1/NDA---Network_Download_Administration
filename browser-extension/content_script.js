@@ -6,7 +6,7 @@
 
     const btn = document.createElement("button");
     btn.id = "mydownloader-btn";
-    btn.textContent = "⬇ Download with My Downloader";
+    btn.textContent = "⬇ Download with NDA";
     btn.addEventListener("click", onButtonClick);
     document.body.appendChild(btn);
   }

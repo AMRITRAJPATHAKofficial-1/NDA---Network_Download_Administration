@@ -1,5 +1,6 @@
 import os
 import time
+import glob
 import threading
 import yt_dlp
 
@@ -7,7 +8,12 @@ FFMPEG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 DENO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "deno", "deno.exe")
 POT_PROVIDER_SERVER_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pot-provider", "server")
 
-DIAGNOSTIC_MODE = False  # set False once everything's confirmed working
+DIAGNOSTIC_MODE = False  # verbose yt-dlp logging — keep off unless actively debugging
+
+# --- Extraction cache: avoids re-resolving player clients/PO tokens a second time
+# when the user clicks "Start Download" right after viewing the quality list. ---
+_info_cache = {}  # url -> (timestamp, info_dict, had_cookies: bool)
+CACHE_TTL_SECONDS = 600  # 10 minutes — long enough to cover "pick quality -> click download"
 
 
 class DownloadCancelled(Exception):
@@ -42,8 +48,41 @@ def _extractor_args():
     return {"youtube": {"player_client": ["web", "web_safari", "android", "ios", "mweb"]}}
 
 
+def _cleanup_partial_fragments(save_path):
+    """Remove leftover .partN / .ytdl fragment files after a failed download."""
+    base = os.path.splitext(save_path)[0]
+    for pattern in (f"{base}*.part*", f"{base}*.ytdl"):
+        for f in glob.glob(pattern):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+
+
+def _cache_info(url, info, cookiefile):
+    _info_cache[url] = (time.time(), info, bool(cookiefile))
+
+
+def _get_cached_info(url, cookiefile):
+    """Return cached extraction info if fresh and cookie-state matches, else None."""
+    entry = _info_cache.get(url)
+    if not entry:
+        return None
+    ts, info, had_cookies = entry
+    if time.time() - ts > CACHE_TTL_SECONDS:
+        _info_cache.pop(url, None)
+        return None
+    if had_cookies != bool(cookiefile):
+        # Cookie availability changed since caching (e.g. permission granted/revoked
+        # between the two calls) — safer to re-extract than reuse a mismatched result.
+        return None
+    return info
+
+
 def list_formats(url, cookiefile=None):
-    """Return video title + curated quality options for the quality-picker."""
+    """Return video title + curated quality options for the quality-picker.
+    Also caches the full extraction result so the follow-up download() call
+    (triggered when the user picks a quality) can skip re-resolving from scratch."""
     ydl_opts = {
         "quiet": not DIAGNOSTIC_MODE,
         "verbose": DIAGNOSTIC_MODE,
@@ -58,8 +97,10 @@ def list_formats(url, cookiefile=None):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
 
+    _cache_info(url, info, cookiefile)
+
     title = info.get("title", "video")
-    duration = info.get("duration")  # seconds, used for size estimation fallback
+    duration = info.get("duration")
     formats = info.get("formats", [])
 
     seen_heights = set()
@@ -75,9 +116,9 @@ def list_formats(url, cookiefile=None):
         filesize = f.get("filesize") or f.get("filesize_approx") or 0
         estimated = False
         if not filesize:
-            tbr = f.get("tbr")  # bitrate in kbps
+            tbr = f.get("tbr")
             if tbr and duration:
-                filesize = int((tbr * 1000 / 8) * duration)  # kbps -> bytes over duration
+                filesize = int((tbr * 1000 / 8) * duration)
                 estimated = True
 
         if filesize:
@@ -133,9 +174,10 @@ def download(url, format_selector, save_path, is_audio_only=False, progress_call
         "verbose": DIAGNOSTIC_MODE,
         "extractor_args": _extractor_args(),
         "js_runtimes": _js_runtimes_opt(),
-        # --- speed fixes: parallel chunked downloading, IDM-style ---
-        "concurrent_fragment_downloads": num_connections,
-        "http_chunk_size": 10 * 1024 * 1024,  # 10MB chunks, enables range-request parallelism
+        "concurrent_fragment_downloads": min(num_connections, 4),
+        "retries": 10,
+        "fragment_retries": 10,
+        "retry_sleep_functions": {"fragment": lambda n: min(4, 1 * (n + 1))},
     }
     if cookiefile:
         ydl_opts["cookiefile"] = cookiefile
@@ -152,14 +194,31 @@ def download(url, format_selector, save_path, is_audio_only=False, progress_call
     else:
         ydl_opts["merge_output_format"] = "mp4"
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        final_path = ydl.prepare_filename(info)
-        if is_audio_only:
-            final_path = os.path.splitext(final_path)[0] + ".mp3"
-        elif not final_path.endswith(".mp4"):
-            candidate = os.path.splitext(final_path)[0] + ".mp4"
-            if os.path.exists(candidate):
-                final_path = candidate
+    cached_info = _get_cached_info(url, cookiefile)
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            if cached_info is not None:
+                try:
+                    # Reuse the extraction already done during the quality-list step —
+                    # skips re-negotiating player clients/PO tokens entirely.
+                    info = ydl.process_ie_result(cached_info, download=True)
+                except Exception:
+                    # Cached result didn't work for some reason (e.g. format URLs expired
+                    # if the user waited a long time) — fall back to a fresh extraction.
+                    info = ydl.extract_info(url, download=True)
+            else:
+                info = ydl.extract_info(url, download=True)
+
+            final_path = ydl.prepare_filename(info)
+            if is_audio_only:
+                final_path = os.path.splitext(final_path)[0] + ".mp3"
+            elif not final_path.endswith(".mp4"):
+                candidate = os.path.splitext(final_path)[0] + ".mp4"
+                if os.path.exists(candidate):
+                    final_path = candidate
+    except Exception:
+        _cleanup_partial_fragments(save_path)
+        raise
 
     return final_path

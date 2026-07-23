@@ -14,7 +14,7 @@ function isYtDlpSite(url) {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "download-with-my-downloader",
-    title: "Download with My Downloader",
+    title: "Download with Network Download Administration",
     contexts: ["image", "link", "video", "audio"]
   });
 });
@@ -56,20 +56,34 @@ chrome.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
   }
 
   sendToServer(downloadItem.url, downloadItem.filename || "", downloadItem.referrer || "");
+  suggest();
 
-  chrome.downloads.cancel(downloadItem.id, () => {
+  // Only attempt to cancel if the download is still actually in progress —
+  // avoids the "Download must be in progress" error when Chrome has already
+  // moved it to "complete"/"interrupted" by the time this callback runs.
+  chrome.downloads.search({ id: downloadItem.id }, (results) => {
     if (chrome.runtime.lastError) {
-      // already finished or cancelled — expected in some races, ignore
-    }
-    chrome.downloads.erase({ id: downloadItem.id }, () => {
-      if (chrome.runtime.lastError) {
-        // ignore
-      }
       handledDownloads.delete(downloadItem.id);
+      return;
+    }
+    const current = results && results[0];
+    if (!current || current.state !== "in_progress") {
+      handledDownloads.delete(downloadItem.id);
+      return;
+    }
+
+    chrome.downloads.cancel(downloadItem.id, () => {
+      if (chrome.runtime.lastError) {
+        // Already finished/cancelled between our check and this call — harmless race, ignore.
+      }
+      chrome.downloads.erase({ id: downloadItem.id }, () => {
+        if (chrome.runtime.lastError) {
+          // Already erased — harmless, ignore.
+        }
+        handledDownloads.delete(downloadItem.id);
+      });
     });
   });
-
-  suggest();
 });
 
 function sendToServer(url, filename, referrer) {
