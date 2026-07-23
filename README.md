@@ -6,7 +6,7 @@ A personal IDM-style download manager: a Chrome extension, a local FastAPI serve
 
 - Segmented, multi-connection direct file downloads (pause/resume/cancel)
 - YouTube, Instagram, and X video downloads via yt-dlp, with full quality ladder (144p–2160p)
-- Right-click "Download with Network Downloader Administration" context menu in Chrome
+- Right-click "Download with Network Download Administration" context menu in Chrome
 - Floating in-page download button on video sites
 - Download categories (Video, Music, Pictures, Documents, Compressed, Programs, Other)
 - Download history with filtering (All / Unfinished / Finished / by Category)
