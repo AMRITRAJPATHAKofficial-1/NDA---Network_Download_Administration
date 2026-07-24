@@ -77,19 +77,70 @@ def _cleanup_cookiefile(path):
             pass
 
 
+# Signature bytes for common file types — checked against the first bytes of
+# the actual downloaded content, since Content-Type headers are unreliable
+# for signed/tokenized URLs (e.g. Google CDN links with no filename in the path).
+_MAGIC_SIGNATURES = [
+    (b"\xFF\xD8\xFF", ".jpg"),
+    (b"\x89PNG\r\n\x1a\n", ".png"),
+    (b"GIF87a", ".gif"),
+    (b"GIF89a", ".gif"),
+    (b"%PDF", ".pdf"),
+    (b"PK\x03\x04", ".zip"),
+    (b"\x1a\x45\xdf\xa3", ".webm"),  # Matroska/WebM container
+]
+
+
+def _sniff_extension_from_bytes(data: bytes):
+    """Inspect the first chunk of real file bytes and return a matching extension,
+    or None if nothing recognized. This is far more reliable than trusting
+    Content-Type headers, which some CDNs (e.g. Google's signed download URLs)
+    report incorrectly or generically."""
+    if not data:
+        return None
+
+    # MP4/MOV family: look for the 'ftyp' box, which appears a few bytes into the file
+    if len(data) >= 12 and data[4:8] == b"ftyp":
+        return ".mp4"
+
+    if data.startswith(b"RIFF") and len(data) >= 12 and data[8:12] == b"WEBP":
+        return ".webp"
+
+    for signature, ext in _MAGIC_SIGNATURES:
+        if data.startswith(signature):
+            return ext
+
+    # HTML/text error pages — recognizable as readable text starting with these markers
+    lowered = data[:200].lower()
+    if b"<!doctype html" in lowered or b"<html" in lowered:
+        return ".html"
+
+    return None
+
+
 async def _guess_extension_from_headers(url: str) -> str:
-    ext = ".jpg"
+    """Fetch a small chunk of the real content and sniff its actual file type,
+    falling back to the Content-Type header only if byte-sniffing finds nothing."""
+    ext = None
+    content_type = ""
     try:
         connector = aiohttp.TCPConnector(ssl=SSL_CONTEXT)
         async with aiohttp.ClientSession(connector=connector) as session:
-            async with session.head(url, allow_redirects=True, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            headers = {"Range": "bytes=0-63"}  # first 64 bytes is enough for every signature above
+            async with session.get(url, headers=headers, allow_redirects=True, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                 content_type = resp.headers.get("Content-Type", "").split(";")[0].strip()
-                guessed = mimetypes.guess_extension(content_type) if content_type else None
-                if guessed:
-                    ext = guessed
+                chunk = await resp.content.read(64)
+                ext = _sniff_extension_from_bytes(chunk)
     except Exception:
         pass
-    return ext
+
+    if ext:
+        return ext
+
+    # Fallback: header-based guess, then final fallback to .bin (not .jpg —
+    # defaulting to .jpg was misleading when the real type was unknown).
+    guessed = mimetypes.guess_extension(content_type) if content_type else None
+    return guessed or ".bin"
 
 
 async def guess_filename(url: str) -> str:
