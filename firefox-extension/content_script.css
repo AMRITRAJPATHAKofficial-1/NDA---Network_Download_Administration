@@ -1,0 +1,89 @@
+#mydownloader-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999999;
+  background: #cc0000;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  font-family: Arial, sans-serif;
+}
+
+#mydownloader-btn:hover {
+  background: #a80000;
+}
+
+#mydownloader-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#mydownloader-panel {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  min-width: 320px;
+  max-width: 420px;
+  max-height: 70vh;
+  overflow-y: auto;
+  font-family: Arial, sans-serif;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.mydownloader-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 12px;
+  color: #111;
+}
+
+.mydownloader-message {
+  font-size: 14px;
+  color: #333;
+}
+
+.mydownloader-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mydownloader-option {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #f7f7f7;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+}
+
+.mydownloader-option:hover {
+  background: #eee;
+}
+
+.mydownloader-audio {
+  border-top: 2px solid #cc0000;
+  margin-top: 4px;
+}
+
+.mydownloader-close {
+  margin-top: 14px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #eee;
+  cursor: pointer;
+  font-size: 13px;
+}

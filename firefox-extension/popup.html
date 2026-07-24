@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 340px;
+      max-height: 480px;
+      overflow-y: auto;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #1e1e1e;
+      color: #eee;
+    }
+    #header {
+      padding: 12px 14px;
+      background: #cc0000;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    #content {
+      padding: 12px 14px;
+    }
+    #status {
+      font-size: 13px;
+      color: #ccc;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .option {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 9px 10px;
+      margin-bottom: 6px;
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      border-radius: 6px;
+      color: #eee;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .option:hover {
+      background: #3a3a3a;
+    }
+    .audio {
+      border-top: 2px solid #cc0000;
+      margin-top: 8px;
+      padding-top: 12px;
+    }
+    #enable-cookies-btn {
+      display: block;
+      width: 100%;
+      text-align: center;
+      padding: 9px 10px;
+      margin-bottom: 10px;
+      background: #2e7d32;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    #enable-cookies-btn:hover {
+      background: #388e3c;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">⬇ Download with Network Download Administration</div>
+  <div id="content">
+    <button id="enable-cookies-btn">Enable high-quality downloads (use my login)</button>
+    <div id="status">Checking this page...</div>
+    <div id="options"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

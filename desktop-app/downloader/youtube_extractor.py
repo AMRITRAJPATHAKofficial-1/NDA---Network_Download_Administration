@@ -45,8 +45,10 @@ def _js_runtimes_opt():
 
 
 def _extractor_args():
-    return {"youtube": {"player_client": ["web", "web_safari", "android", "ios", "mweb"]}}
-
+    return {
+        "youtube": {"player_client": ["web", "web_safari", "android", "android_vr", "ios", "mweb"]},
+        "youtubepot-bgutilhttp": {"base_url": ["http://localhost:4416"]},
+    }
 
 def _cleanup_partial_fragments(save_path):
     """Remove leftover .partN / .ytdl fragment files after a failed download."""

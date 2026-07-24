@@ -46,6 +46,22 @@ _clipboard_monitor = ClipboardMonitor()
 _pot_provider_process = None  # subprocess handle for the vendored PO Token HTTP server
 
 
+def _kill_stale_pot_provider():
+    """Kill any leftover deno.exe processes from previous runs that are still
+    holding port 4416 — prevents new pot-provider starts from silently failing
+    with EADDRINUSE after an earlier session wasn't shut down cleanly."""
+    if sys.platform != "win32":
+        return
+    try:
+        subprocess.run(
+            ["taskkill", "/F", "/IM", "deno.exe"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        pass
+
+
 def start_pot_provider():
     """Launch the vendored bgutil PO-Token HTTP server (desktop-app/pot-provider)
     as a background subprocess using the vendored Deno binary, so the project
@@ -53,6 +69,7 @@ def start_pot_provider():
     Silently does nothing if either piece hasn't been set up yet — yt-dlp will
     just fall back to whatever's on PATH / limited formats, same as before."""
     global _pot_provider_process
+    _kill_stale_pot_provider()
 
     node_modules_dir = os.path.join(POT_PROVIDER_SERVER_DIR, "node_modules")
     entry_script = os.path.join(POT_PROVIDER_SERVER_DIR, "src", "main.ts")
