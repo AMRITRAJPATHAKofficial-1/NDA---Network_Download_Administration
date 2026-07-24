@@ -50,6 +50,7 @@ def _extractor_args():
         "youtubepot-bgutilhttp": {"base_url": ["http://localhost:4416"]},
     }
 
+
 def _cleanup_partial_fragments(save_path):
     """Remove leftover .partN / .ytdl fragment files after a failed download."""
     base = os.path.splitext(save_path)[0]
@@ -75,14 +76,14 @@ def _get_cached_info(url, cookiefile):
         _info_cache.pop(url, None)
         return None
     if had_cookies != bool(cookiefile):
-        # Cookie availability changed since caching (e.g. permission granted/revoked
-        # between the two calls) — safer to re-extract than reuse a mismatched result.
         return None
     return info
 
 
 def list_formats(url, cookiefile=None):
-    """Return video title + curated quality options for the quality-picker."""
+    """Return video title + curated quality options for the quality-picker.
+    Also caches the full extraction result so the follow-up download() call
+    (triggered when the user picks a quality) can skip re-resolving from scratch."""
     ydl_opts = {
         "quiet": not DIAGNOSTIC_MODE,
         "verbose": DIAGNOSTIC_MODE,
@@ -202,12 +203,8 @@ def download(url, format_selector, save_path, is_audio_only=False, progress_call
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             if cached_info is not None:
                 try:
-                    # Reuse the extraction already done during the quality-list step —
-                    # skips re-negotiating player clients/PO tokens entirely.
                     info = ydl.process_ie_result(cached_info, download=True)
                 except Exception:
-                    # Cached result didn't work for some reason (e.g. format URLs expired
-                    # if the user waited a long time) — fall back to a fresh extraction.
                     info = ydl.extract_info(url, download=True)
             else:
                 info = ydl.extract_info(url, download=True)
