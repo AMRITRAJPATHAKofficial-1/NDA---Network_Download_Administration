@@ -82,9 +82,7 @@ def _get_cached_info(url, cookiefile):
 
 
 def list_formats(url, cookiefile=None):
-    """Return video title + curated quality options for the quality-picker.
-    Also caches the full extraction result so the follow-up download() call
-    (triggered when the user picks a quality) can skip re-resolving from scratch."""
+    """Return video title + curated quality options for the quality-picker."""
     ydl_opts = {
         "quiet": not DIAGNOSTIC_MODE,
         "verbose": DIAGNOSTIC_MODE,
@@ -95,6 +93,8 @@ def list_formats(url, cookiefile=None):
     }
     if cookiefile:
         ydl_opts["cookiefile"] = cookiefile
+    if os.path.exists(FFMPEG_PATH):
+        ydl_opts["ffmpeg_location"] = FFMPEG_PATH
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
